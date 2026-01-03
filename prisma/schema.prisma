@@ -12,3 +12,45 @@ generator client {
 datasource db {
   provider = "postgresql"
 }
+
+enum Role {
+  EMPLOYEE
+  HR
+}
+
+model GlobalSerial {
+  id          Int @id @default(1)
+  lastSerial  Int
+}
+
+model User {
+  id          String   @id @default(uuid())
+  employeeId  String   @unique
+  email       String   @unique
+  password    String
+  role        Role     @default(EMPLOYEE)
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  profile     EmployeeProfile?
+}
+
+model EmployeeProfile {
+  id          String   @id @default(uuid())
+  userId      String   @unique
+  user        User     @relation(fields: [userId], references: [id])
+
+  name        String
+  userPhoto   String?
+  department  String?
+  designation String?
+  phone       String?
+  dob DateTime?
+  address String
+  emergencyContact String
+  joinedAt    DateTime
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
