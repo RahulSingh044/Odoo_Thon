@@ -1,45 +1,43 @@
 import os
-from flask import Flask, request, jsonify
+from fastapi import FastAPI, UploadFile, File, HTTPException
+from fastapi.responses import JSONResponse
 from werkzeug.utils import secure_filename
-from parser import parse_resume
+
+from resume_parser import parse_resume
+
 
 UPLOAD_FOLDER = "uploads"
 ALLOWED_EXTENSIONS = {"pdf", "docx"}
 
-app = Flask(__name__)
-app.config["UPLOAD_FOLDER"] = UPLOAD_FOLDER
-
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 
-def allowed_file(filename):
-    return "." in filename and filename.rsplit(".", 1)[1].lower() in ALLOWED_EXTENSIONS
+app = FastAPI(title="Resume Parser API")
 
-@app.route("/parse-resume", methods=["POST"])
-def parse_resume_api():
-    if "resume" not in request.files:
-        return jsonify({"error": "No resume file provided"}), 400
+def allowed_file(filename: str) -> bool:
+    return (
+        "." in filename
+        and filename.rsplit(".", 1)[1].lower() in ALLOWED_EXTENSIONS
+    )
 
-    file = request.files["resume"]
 
-    if file.filename == "":
-        return jsonify({"error": "Empty filename"}), 400
+@app.post("/parser")
+async def parse_resume_api(resume: UploadFile = File(...)):
+    if not allowed_file(resume.filename):
+        raise HTTPException(status_code=400, detail="Unsupported file type")
 
-    if not allowed_file(file.filename):
-        return jsonify({"error": "Unsupported file type"}), 400
+    filename = secure_filename(resume.filename)
+    path = os.path.join(UPLOAD_FOLDER, filename)
 
-    filename = secure_filename(file.filename)
-    path = os.path.join(app.config["UPLOAD_FOLDER"], filename)
-    file.save(path)
+    with open(path, "wb") as f:
+        f.write(await resume.read())
 
     try:
         result = parse_resume(path)
-        return jsonify(result)
+        return JSONResponse(content=result)
     except Exception as e:
-        return jsonify({"error": str(e)}), 500
+        raise HTTPException(status_code=500, detail=str(e))
 
-@app.route("/health", methods=["GET"])
+
+@app.get("/health")
 def health():
-    return jsonify({"status": "ok"})
-
-if __name__ == "__main__":
-    app.run(debug=True)
+    return {"status": "ok"}
