@@ -50,7 +50,8 @@ model User {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  profile EmployeeProfile?
+  profile                  EmployeeProfile?
+  reviewedLeaveApplications LeaveApplication[]
 }
 
 model EmployeeProfile {
@@ -73,8 +74,11 @@ model EmployeeProfile {
 
   joinedAt DateTime
 
-  salary      EmployeeSalary?
-  bankDetails EmployeeBankDetails?
+  salary           EmployeeSalary?
+  bankDetails      EmployeeBankDetails?
+  resume           Resume?
+  attendance       Attendance[]
+  leaveApplications LeaveApplication[]
 }
 
 // ============================================================================
@@ -162,4 +166,122 @@ model EmployeeBankDetails {
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+}
+
+model ResumeSkill {
+  id        String @id @default(uuid())
+  resumeId  String
+  resume    Resume @relation(fields: [resumeId], references: [id], onDelete: Cascade)
+
+  name      String          // e.g. React, Node.js, Communication
+  level     String?         // Optional: Beginner / Intermediate / Expert
+
+  createdAt DateTime @default(now())
+
+  @@unique([resumeId, name])
+}
+
+model ResumeCertification {
+  id            String @id @default(uuid())
+  resumeId      String
+  resume        Resume @relation(fields: [resumeId], references: [id], onDelete: Cascade)
+
+  title         String       // Certification name
+  issuer        String?      // Coursera, Google, AWS
+  issuedDate    DateTime?
+  certificateUrl String?
+
+  createdAt     DateTime @default(now())
+}
+
+model Resume {
+  id                String   @id @default(uuid())
+  employeeProfileId String   @unique
+  employeeProfile   EmployeeProfile @relation(fields: [employeeProfileId], references: [id], onDelete: Cascade)
+
+  about             String?
+  jobLove           String?
+  interests         String?
+
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  skills            ResumeSkill[]
+  certifications    ResumeCertification[]
+}
+
+enum AttendanceStatus {
+  PRESENT
+  ABSENT
+  LEAVE
+  HOLIDAY
+}
+
+model Attendance {
+  id                String   @id @default(uuid())
+
+  employeeProfileId String
+  employeeProfile   EmployeeProfile @relation(fields: [employeeProfileId], references: [id], onDelete: Cascade)
+
+  date              DateTime        // YYYY-MM-DD (unique per employee)
+
+  checkIn           DateTime?
+  checkOut          DateTime?
+
+  workMinutes       Int?             // total worked minutes (excluding breaks)
+  breakMinutes      Int?             // total break time
+  extraMinutes      Int?             // overtime minutes
+
+  status            AttendanceStatus // PRESENT, ABSENT, LEAVE, HOLIDAY
+
+  isPayable         Boolean @default(true) // false → unpaid / missing attendance
+
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  @@unique([employeeProfileId, date])
+  @@index([date])
+}
+
+enum LeaveType {
+  PAID
+  SICK
+  UNPAID
+}
+
+enum LeaveStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  CANCELLED
+}
+
+model LeaveApplication {
+  id                String   @id @default(uuid())
+
+  employeeProfileId String
+  employeeProfile   EmployeeProfile @relation(fields: [employeeProfileId], references: [id], onDelete: Cascade)
+
+  type              LeaveType
+  status            LeaveStatus
+
+  startDate         DateTime
+  endDate           DateTime
+  totalDays         Int
+
+  reason            String?
+
+  appliedAt         DateTime @default(now())
+
+  reviewedById      String?
+  reviewedBy        User? @relation(fields: [reviewedById], references: [id])
+
+  reviewedAt        DateTime?
+  reviewComment     String?
+
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  @@index([employeeProfileId])
+  @@index([status])
 }
