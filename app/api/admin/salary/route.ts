@@ -3,7 +3,7 @@ import { PrismaClient } from "@/app/generated/prisma/client";
 import { ComponentType } from "@/app/generated/prisma/enums";
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
-import { verifyAuth } from "@/lib/auth";
+import { verifyAuth } from "@/lib/verifyAuth";
 
 // Type definitions
 type TransactionClient = Omit<PrismaClient, "$connect" | "$disconnect" | "$on" | "$transaction" | "$extends">;

@@ -1,6 +1,6 @@
 import prisma from "@/lib/prisma";
 import { NextRequest, NextResponse } from "next/server";
-import { verifyAuth } from "@/lib/auth";
+import { verifyAuth } from "@/lib/verifyAuth";
 
 // GET - Get all employees list
 export const GET = async (req: NextRequest) => {
@@ -15,6 +15,13 @@ export const GET = async (req: NextRequest) => {
 
         // Get all employees with related data
         const employees = await prisma.employeeProfile.findMany({
+            where: {
+                user: {
+                    role: {
+                        not: "HR"
+                    }
+                }
+            },
             include: {
                 user: {
                     select: {

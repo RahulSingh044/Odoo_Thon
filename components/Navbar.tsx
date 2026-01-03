@@ -1,50 +1,64 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useEffect, useState } from "react";
 import Image from "next/image";
 import { useRouter, usePathname } from "next/navigation";
-import { User } from "lucide-react";
+import { User as UserIcon } from "lucide-react";
+import { useAuth } from "@/context/authContext";
 
 export default function OdooNavbar() {
     const pathname = usePathname();
+    const router = useRouter();
+    const { user, loading } = useAuth();
 
-    // ⛔ Hide navbar on auth pages
-    if (pathname === "/Login" || pathname === "/register" || pathname === "/profile") {
+    /* =======================
+       Hide navbar on auth pages
+    ======================= */
+    if (
+        pathname === "/Login" ||
+        pathname === "/register" ||
+        pathname === "/profile"
+    ) {
         return null;
     }
 
-    const [activeTab, setActiveTab] = useState("Home");
+    if (loading) return null;
+
+    /* =======================
+       Scroll state
+    ======================= */
     const [isScrolled, setIsScrolled] = useState(false);
 
     useEffect(() => {
-        const handleScroll = () => {
-            setIsScrolled(window.scrollY > 20);
-        };
+        const handleScroll = () => setIsScrolled(window.scrollY > 20);
         window.addEventListener("scroll", handleScroll);
         return () => window.removeEventListener("scroll", handleScroll);
     }, []);
 
-    const navItems = [
-        { name: "Home", link: "/" },
-        { name: "Attendance", link: "/attendance" },
-        { name: "Leaves", link: "/employeeLeave" },
-    ];
-
-    const router = useRouter();
-
-    const redirect = (name: string, link: string) => {
-        setActiveTab(name);
-        router.push(link);
-    };
+    /* =======================
+       Role-based Navigation
+    ======================= */
+    const navItems =
+        user?.role === "HR"
+            ? [
+                { name: "Employee", link: "/admin/employee" },
+                { name: "Attendance", link: "/attendance" },
+                { name: "Leaves", link: "/employeeLeave" },
+            ]
+            : [
+                { name: "Home", link: "/" },
+                { name: "Attendance", link: "/attendance" },
+                { name: "Leaves", link: "/employeeLeave" },
+            ];
 
     return (
         <nav
             className={`w-full z-50 sticky top-0 flex justify-center transition-all duration-500
-            ${isScrolled ? "py-3" : "py-6"}`}
+        ${isScrolled ? "py-3" : "py-6"}`}
         >
             <div
                 className={`flex items-center backdrop-blur-2xl border rounded-full p-1.5 transition-all duration-500
-                ${isScrolled
+          ${isScrolled
                         ? "bg-[#1B1B1B]/40 border-white/5 shadow-2xl scale-95"
                         : "bg-[#1B1B1B]/80 border-white/10 shadow-[0_20px_50px_rgba(0,0,0,0.5)]"
                     }`}
@@ -62,31 +76,44 @@ export default function OdooNavbar() {
 
                 {/* Links */}
                 <ul className="flex items-center gap-1">
-                    {navItems.map(item => (
-                        <li key={item.name}>
-                            <button
-                                onClick={() => redirect(item.name, item.link)}
-                                className={`px-6 py-2 rounded-full text-sm font-bold transition-all
-                                ${activeTab === item.name
-                                        ? "bg-[#714B67] text-white"
-                                        : "text-zinc-400 hover:text-white hover:bg-white/5"
-                                    }`}
-                            >
-                                {item.name}
-                            </button>
-                        </li>
-                    ))}
+                    {navItems.map((item) => {
+                        const isActive =
+                            pathname === item.link ||
+                            (item.link !== "/" && pathname.startsWith(item.link));
+
+                        return (
+                            <li key={item.name}>
+                                <button
+                                    onClick={() => router.push(item.link)}
+                                    className={`px-6 py-2 rounded-full text-sm font-bold transition-all
+                    ${isActive
+                                            ? "bg-[#714B67] text-white shadow-[0_0_15px_rgba(113,75,103,0.4)]"
+                                            : "text-zinc-400 hover:text-white hover:bg-white/5"
+                                        }`}
+                                >
+                                    {item.name}
+                                </button>
+                            </li>
+                        );
+                    })}
                 </ul>
 
                 {/* Profile */}
-                <div onClick={() => redirect("Profile", "/profile")} className="pl-4 pr-2 border-l border-white/10 ml-2 flex items-center gap-3 cursor-pointer">
+                <div
+                    onClick={() => router.push("/profile")}
+                    className="pl-4 pr-2 border-l border-white/10 ml-2 flex items-center gap-3 cursor-pointer"
+                >
                     <div className="hidden md:flex flex-col items-end">
-                        <span className="text-[11px] font-bold text-zinc-100">John Doe</span>
-                        <span className="text-[9px] font-bold text-[#017E84] uppercase">Admin</span>
+                        <span className="text-[11px] font-bold text-zinc-100">
+                            {user?.name}
+                        </span>
+                        <span className="text-[9px] font-bold text-[#017E84] uppercase">
+                            {user?.role}
+                        </span>
                     </div>
 
                     <div className="w-9 h-9 rounded-full bg-[#0F0F0F] flex items-center justify-center">
-                        <User size={18} className="text-zinc-400" />
+                        <UserIcon size={18} className="text-zinc-400" />
                     </div>
                 </div>
             </div>

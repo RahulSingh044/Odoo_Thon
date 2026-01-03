@@ -4,7 +4,12 @@ import { cookies } from "next/headers";
 import jwt from "jsonwebtoken";
 import bcrypt from "bcryptjs";
 import { z } from "zod";
-import { getSecretKey } from "@/lib/auth";
+
+if (!process.env.JWT_SECRET) {
+    throw new Error("JWT_SECRET is not defined");
+}
+
+const SECRET_KEY = process.env.JWT_SECRET || "MY_SECRET_KEY";
 
 const LoginValidation = z.object({
     email: z.string().email("Invalid email address"),
@@ -67,7 +72,7 @@ export const POST = async (req: NextRequest) => {
 
         const token = jwt.sign(
             { id: user.id, email: user.email, role: user.role },
-            getSecretKey(),
+            SECRET_KEY,
             { expiresIn: "7d" }
         );
 
@@ -85,6 +90,7 @@ export const POST = async (req: NextRequest) => {
             {
                 success: true,
                 message: "User logged in successfully",
+                role: user.role,
                 token,
             },
             { status: 200 }
