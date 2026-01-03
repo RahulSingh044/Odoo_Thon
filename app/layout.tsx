@@ -4,6 +4,7 @@ import "./globals.css";
 import Navbar from "../components/Navbar";
 import AuthProvider from "@/context/authContext";
 import OdooNavbar from "../components/Navbar";
+import { Toaster } from "react-hot-toast";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -39,6 +40,7 @@ export default function RootLayout({
               {children}
             </main>
           </div>
+          <Toaster />
         </AuthProvider>
       </body>
     </html>

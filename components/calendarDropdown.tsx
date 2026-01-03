@@ -1,46 +1,47 @@
-"use client"
+"use client";
 
-import * as React from "react"
-import { ChevronDownIcon } from "lucide-react"
-
-import { Button } from "@/components/ui/button"
-import { Calendar } from "@/components/ui/calendar"
-import { Label } from "@/components/ui/label"
+import * as React from "react";
+import { Calendar } from "@/components/ui/calendar";
 import {
     Popover,
     PopoverContent,
     PopoverTrigger,
-} from "@/components/ui/popover"
+} from "@/components/ui/popover";
+import { Button } from "@/components/ui/button";
+import { CalendarIcon } from "lucide-react";
+import { format } from "date-fns";
 
-export function Calendar22() {
-    const [open, setOpen] = React.useState(false)
-    const [date, setDate] = React.useState<Date | undefined>(undefined)
+/* =======================
+   Types
+======================= */
+type Calendar22Props = {
+    value: Date | null;
+    onChange: (date: Date | null) => void;
+};
 
+export function Calendar22({ value, onChange }: Calendar22Props) {
     return (
-        <div className="flex flex-col gap-3">
-            <Popover open={open} onOpenChange={setOpen}>
-                <PopoverTrigger asChild >
-                    <Button
-                        variant="outline"
-                        id="date"
-                        className="w-48 justify-between font-normal"
-                    >
-                        {date ? date.toLocaleDateString() : "Select date"}
-                        <ChevronDownIcon />
-                    </Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-auto overflow-hidden p-0 bg-[#1B1B1B] border-white/10" align="start">
-                    <Calendar
-                        mode="single"
-                        selected={date}
-                        captionLayout="dropdown"
-                        onSelect={(date) => {
-                            setDate(date)
-                            setOpen(false)
-                        }}
-                    />
-                </PopoverContent>
-            </Popover>
-        </div>
-    )
+        <Popover>
+            <PopoverTrigger asChild>
+                <Button
+                    variant="outline"
+                    className="w-full justify-start bg-white/5 border-white/10 text-left text-zinc-400"
+                >
+                    <CalendarIcon className="mr-2 h-4 w-4" />
+                    {value ? format(value, "PPP") : "Pick a date"}
+                </Button>
+            </PopoverTrigger>
+
+            <PopoverContent className="w-auto p-0 bg-[#1B1B1B] border-white/10">
+                <Calendar
+                    mode="single"
+                    selected={value ?? undefined}
+                    onSelect={(date) => {
+                        onChange(date ?? null);
+                    }}
+                    initialFocus
+                />
+            </PopoverContent>
+        </Popover>
+    );
 }
