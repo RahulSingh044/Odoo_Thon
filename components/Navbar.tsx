@@ -24,6 +24,8 @@ export default function OdooNavbar() {
 
     if (loading) return null;
 
+    console.log("nav user", user);
+
     /* =======================
        Scroll state
     ======================= */
@@ -39,11 +41,11 @@ export default function OdooNavbar() {
        Role-based Navigation
     ======================= */
     const navItems =
-        user?.role === "HR"
+        user.role === "HR"
             ? [
                 { name: "Employee", link: "/admin/employee" },
-                { name: "Attendance", link: "/attendance" },
-                { name: "Leaves", link: "/employeeLeave" },
+                { name: "Attendance", link: "/admin/attendance" },
+                { name: "Leaves", link: "/admin/leaves" },
             ]
             : [
                 { name: "Home", link: "/" },
