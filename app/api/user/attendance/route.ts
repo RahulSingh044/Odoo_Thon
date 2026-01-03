@@ -1,7 +1,7 @@
 import prisma from "@/lib/prisma";
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
-import { verifyAuth } from "@/lib/auth";
+import { verifyAuth } from "@/lib/verifyAuth";
 import { AttendanceStatus } from "@/app/generated/prisma/enums";
 
 // Validation schema for check-out (optional breakMinutes)

@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
     FileText,
     Lock,
@@ -44,20 +44,63 @@ export default function RefinedProfileDashboard() {
         nationality: "Indian",
         gender: "Male",
         maritalStatus: "Single",
-        personalEmail: "alex.dev@gmail.com",
-        doj: "12 June 2021"
+        personalEmail: "",
+        doj: "12 June 2021",
+        employeeId: "",
+        role: "",
+        phone: ""
     });
 
     const [bankInfo, setBankInfo] = useState({
-        accountHolder: "Rahul Singh",
-        bankName: "HDFC Bank Ltd",
-        accountNumber: "•••• •••• 5592",
-        ifsc: "HDFC0001234"
+        accountHolder: "",
+        bankName: "",
+        accountNumber: "",
+        ifsc: ""
     });
+    const [isLoadingBankDetails, setIsLoadingBankDetails] = useState(true);
+    const [bankDetailsExist, setBankDetailsExist] = useState(false);
 
-    const handleBankSave = () => {
-        setIsEditingBank(false);
-        setIsBankLocked(true); // Lock the details after saving
+    // Salary state
+    const [salaryData, setSalaryData] = useState<{
+        monthlyWage: number;
+        grossSalary: number;
+        netSalary: number;
+    } | null>(null);
+    const [isLoadingSalary, setIsLoadingSalary] = useState(true);
+
+    const handleBankSave = async () => {
+        try {
+            // Prepare the data for the API (map ifsc back to ifscCode)
+            const bankData = {
+                accountNumber: bankInfo.accountNumber,
+                bankName: bankInfo.bankName,
+                ifscCode: bankInfo.ifsc
+            };
+
+            // Try to update first if bank details exist, otherwise create
+            const method = bankDetailsExist ? "PATCH" : "POST";
+            const response = await fetch("/api/profile/bank-details", {
+                method: method,
+                headers: {
+                    "Content-Type": "application/json",
+                },
+                body: JSON.stringify(bankData),
+            });
+
+            const result = await response.json();
+
+            if (result.success) {
+                setIsEditingBank(false);
+                setIsBankLocked(true); // Lock the details after saving
+                setBankDetailsExist(true);
+            } else {
+                console.error("Failed to save bank details:", result.message);
+                // You might want to show an error toast here
+            }
+        } catch (error) {
+            console.error("Error saving bank details:", error);
+            // You might want to show an error toast here
+        }
     };
 
     const tabContentVariants = {
@@ -79,6 +122,15 @@ export default function RefinedProfileDashboard() {
         </div>
     );
 
+    // Helper function to mask account number for display
+    const maskAccountNumber = (accountNumber: string): string => {
+        if (!accountNumber) return "";
+        if (accountNumber.length <= 4) return accountNumber;
+        const last4 = accountNumber.slice(-4);
+        const masked = "•••• •••• " + last4;
+        return masked;
+    };
+
     const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
         if (file) {
@@ -92,6 +144,113 @@ export default function RefinedProfileDashboard() {
                 console.log("Resume parsed: ", file.name);
             }, 2000);
         }
+    };
+
+    useEffect(() => {
+        const fetchProfile = async () => {
+            const response = await fetch("/api/profile/");
+            const result = await response.json();
+            console.log(result);
+            
+            if (result.success && result.data) {
+                const data = result.data;
+                setPersonalInfo({
+                    dob: "14 May 1992",
+                    nationality: "Indian",
+                    gender: "Male",
+                    maritalStatus: "Single",
+                    personalEmail: data.email || "",
+                    doj: "12 June 2021",
+                    employeeId: data.employeeId || data.profile?.employeeId || "",
+                    role: data.role || "",
+                    phone: data.profile?.phone || "+91 9920 123 456"
+                });
+            } else {
+                console.error("Failed to fetch profile data:", result.message);
+            }
+        };
+        fetchProfile();
+    }, []);
+
+    useEffect(() => {
+        const fetchBankDetails = async () => {
+            try {
+                setIsLoadingBankDetails(true);
+                const response = await fetch("/api/profile/bank-details");
+                const result = await response.json();
+                
+                if (result.success && result.data) {
+                    const bankData = result.data;
+                    setBankDetailsExist(true);
+                    
+                    // Get account holder name from profile
+                    const profileResponse = await fetch("/api/profile/");
+                    const profileResult = await profileResponse.json();
+                    const accountHolderName = profileResult.success && profileResult.data?.profile?.name 
+                        ? profileResult.data.profile.name 
+                        : "";
+
+                    setBankInfo({
+                        accountHolder: accountHolderName,
+                        bankName: bankData.bankName || "",
+                        accountNumber: bankData.accountNumber || "",
+                        ifsc: bankData.ifscCode || ""
+                    });
+                    
+                    // Set lock status based on verified field if available
+                    if (bankData.verified !== undefined) {
+                        setIsBankLocked(bankData.verified);
+                    }
+                } else {
+                    // Bank details don't exist yet, keep default empty values
+                    setBankDetailsExist(false);
+                    setIsBankLocked(false); // Allow editing when no bank details exist
+                    console.log("No bank details found:", result.message);
+                }
+            } catch (error) {
+                console.error("Failed to fetch bank details:", error);
+            } finally {
+                setIsLoadingBankDetails(false);
+            }
+        };
+        fetchBankDetails();
+    }, []);
+
+    useEffect(() => {
+        const fetchSalary = async () => {
+            try {
+                setIsLoadingSalary(true);
+                const response = await fetch("/api/profile/salary");
+                const result = await response.json();
+                
+                if (result.success && result.data) {
+                    setSalaryData(result.data);
+                } else {
+                    console.log("No salary data found:", result.message);
+                }
+            } catch (error) {
+                console.error("Failed to fetch salary:", error);
+            } finally {
+                setIsLoadingSalary(false);
+            }
+        };
+        fetchSalary();
+    }, []);
+
+    // Helper function to format currency
+    const formatCurrency = (amount: number): string => {
+        return new Intl.NumberFormat('en-IN', {
+            style: 'currency',
+            currency: 'INR',
+            maximumFractionDigits: 2
+        }).format(amount);
+    };
+
+    // Helper function to format number with commas
+    const formatNumber = (amount: number): string => {
+        return new Intl.NumberFormat('en-IN', {
+            maximumFractionDigits: 2
+        }).format(amount);
     };
 
     return (
@@ -126,10 +285,10 @@ export default function RefinedProfileDashboard() {
                                 </div>
                                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-4 max-w-xl">
                                     {[
-                                        { label: "Internal ID", val: "EMP-9920-X", icon: <Fingerprint size={12} /> },
-                                        { label: "Work Email", val: "rahul.s@innovate.er", icon: <Mail size={12} /> },
-                                        { label: "Direct Line", val: "+91 9920 123 456", icon: <Smartphone size={12} /> },
-                                        { label: "Access Level", val: "L4 Administrative", icon: <Lock size={12} /> },
+                                        { label: "Internal ID", val: personalInfo.employeeId, icon: <Fingerprint size={12} /> },
+                                        { label: "Work Email", val: personalInfo.personalEmail, icon: <Mail size={12} /> },
+                                        { label: "Direct Line", val: personalInfo.phone, icon: <Smartphone size={12} /> },
+                                        { label: "Access Level", val: personalInfo.role, icon: <Lock size={12} /> },
                                     ].map((item, i) => (
                                         <div key={i} className="border-l-2 border-zinc-800 pl-4 py-1 hover:border-[#017E84] transition-colors">
                                             <p className="text-[9px] font-black uppercase text-zinc-600 tracking-tighter flex items-center gap-2">
@@ -376,7 +535,11 @@ export default function RefinedProfileDashboard() {
                                             </div>
 
                                             <div className="space-y-6">
-                                                {isEditingBank ? (
+                                                {isLoadingBankDetails ? (
+                                                    <div className="flex items-center justify-center py-8">
+                                                        <div className="text-zinc-500 text-sm">Loading bank details...</div>
+                                                    </div>
+                                                ) : isEditingBank ? (
                                                     <div className="space-y-4">
                                                         <EditInput label="Account Holder" value={bankInfo.accountHolder} onChange={(e: any) => setBankInfo({ ...bankInfo, accountHolder: e.target.value })} />
                                                         <EditInput label="Bank Name" value={bankInfo.bankName} onChange={(e: any) => setBankInfo({ ...bankInfo, bankName: e.target.value })} />
@@ -385,26 +548,34 @@ export default function RefinedProfileDashboard() {
                                                     </div>
                                                 ) : (
                                                     <>
-                                                        <div className="bg-white/[0.02] border border-white/5 p-5 rounded-2xl flex items-center gap-4 group">
-                                                            <div className="w-12 h-12 rounded-xl bg-amber-500/10 flex items-center justify-center text-amber-500">
-                                                                <CreditCard size={24} />
+                                                        {bankInfo.accountNumber || bankInfo.bankName ? (
+                                                            <>
+                                                                <div className="bg-white/[0.02] border border-white/5 p-5 rounded-2xl flex items-center gap-4 group">
+                                                                    <div className="w-12 h-12 rounded-xl bg-amber-500/10 flex items-center justify-center text-amber-500">
+                                                                        <CreditCard size={24} />
+                                                                    </div>
+                                                                    <div>
+                                                                        <p className="text-[10px] font-black text-zinc-600 uppercase mb-1">Primary Account</p>
+                                                                        <p className="text-white font-bold tracking-wider">{maskAccountNumber(bankInfo.accountNumber)}</p>
+                                                                        <p className="text-[10px] text-zinc-500 font-bold uppercase mt-1">{bankInfo.bankName}</p>
+                                                                    </div>
+                                                                </div>
+                                                                <div className="grid grid-cols-2 gap-4">
+                                                                    <div className="p-4 bg-white/[0.01] border border-white/5 rounded-2xl">
+                                                                        <p className="text-[9px] font-black text-zinc-600 uppercase mb-1">IFSC Code</p>
+                                                                        <p className="text-xs text-zinc-300 font-bold">{bankInfo.ifsc}</p>
+                                                                    </div>
+                                                                    <div className="p-4 bg-white/[0.01] border border-white/5 rounded-2xl">
+                                                                        <p className="text-[9px] font-black text-zinc-600 uppercase mb-1">Account Holder</p>
+                                                                        <p className="text-xs text-zinc-300 font-bold uppercase">{bankInfo.accountHolder}</p>
+                                                                    </div>
+                                                                </div>
+                                                            </>
+                                                        ) : (
+                                                            <div className="text-center py-8 text-zinc-500 text-sm">
+                                                                No bank details found. Click edit to add your bank details.
                                                             </div>
-                                                            <div>
-                                                                <p className="text-[10px] font-black text-zinc-600 uppercase mb-1">Primary Account</p>
-                                                                <p className="text-white font-bold tracking-wider">{bankInfo.accountNumber}</p>
-                                                                <p className="text-[10px] text-zinc-500 font-bold uppercase mt-1">{bankInfo.bankName}</p>
-                                                            </div>
-                                                        </div>
-                                                        <div className="grid grid-cols-2 gap-4">
-                                                            <div className="p-4 bg-white/[0.01] border border-white/5 rounded-2xl">
-                                                                <p className="text-[9px] font-black text-zinc-600 uppercase mb-1">IFSC Code</p>
-                                                                <p className="text-xs text-zinc-300 font-bold">{bankInfo.ifsc}</p>
-                                                            </div>
-                                                            <div className="p-4 bg-white/[0.01] border border-white/5 rounded-2xl">
-                                                                <p className="text-[9px] font-black text-zinc-600 uppercase mb-1">Account Holder</p>
-                                                                <p className="text-xs text-zinc-300 font-bold uppercase">{bankInfo.accountHolder}</p>
-                                                            </div>
-                                                        </div>
+                                                        )}
                                                     </>
                                                 )}
                                             </div>
@@ -423,7 +594,7 @@ export default function RefinedProfileDashboard() {
                             </TabsContent>
 
                             {/* --- SALARY INFO TAB --- */}
-                            <TabsContent value="salary" static>
+                            <TabsContent value="salary">
                                 {/* ROLE-BASED LOGIC: Change 'admin' to 'user' to test the restricted view */}
                                 {currentUserRole === 'admin' ? (
                                     <div className="space-y-6">
@@ -435,11 +606,15 @@ export default function RefinedProfileDashboard() {
                                                 </div>
                                                 <div>
                                                     <p className="text-[10px] font-black text-zinc-500 uppercase tracking-widest mb-2">Monthly Gross</p>
-                                                    <h2 className="text-3xl font-black text-white">₹ 50,000.00</h2>
+                                                    <h2 className="text-3xl font-black text-white">
+                                                        {isLoadingSalary ? "Loading..." : salaryData ? formatCurrency(salaryData.monthlyWage) : "₹ 0.00"}
+                                                    </h2>
                                                 </div>
                                                 <div className="text-right">
                                                     <p className="text-[10px] font-black text-zinc-500 uppercase tracking-widest mb-2">Yearly CTC</p>
-                                                    <h2 className="text-xl font-black text-[#017E84]">₹ 6,00,000.00</h2>
+                                                    <h2 className="text-xl font-black text-[#017E84]">
+                                                        {isLoadingSalary ? "Loading..." : salaryData ? formatCurrency(salaryData.grossSalary * 12) : "₹ 0.00"}
+                                                    </h2>
                                                 </div>
                                             </Card>
 
@@ -522,17 +697,28 @@ export default function RefinedProfileDashboard() {
                                     /* RESTRICTED VIEW: Only basic 4 details */
                                     <div className="space-y-6">
                                         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                                            {[
-                                                { label: "Month Wage", val: "₹ 50,000" },
-                                                { label: "Yearly Wage", val: "₹ 6,00,000" },
-                                                { label: "Working Days", val: "5 Days/Week" },
-                                                { label: "Break Time", val: "1 Hr/Day" }
-                                            ].map((item, i) => (
-                                                <Card key={i} className="bg-[#141414] border-white/5 p-6 rounded-2xl text-center">
-                                                    <p className="text-[10px] font-black text-zinc-600 uppercase mb-2 tracking-widest">{item.label}</p>
-                                                    <p className="text-lg font-black text-zinc-200">{item.val}</p>
-                                                </Card>
-                                            ))}
+                                            <Card className="bg-[#141414] border-white/5 p-6 rounded-2xl text-center">
+                                                <p className="text-[10px] font-black text-zinc-600 uppercase mb-2 tracking-widest">Month Wage</p>
+                                                <p className="text-lg font-black text-zinc-200">
+                                                    {isLoadingSalary ? "Loading..." : salaryData ? formatCurrency(salaryData.monthlyWage) : "₹ 0"}
+                                                </p>
+                                            </Card>
+                                            <Card className="bg-[#141414] border-white/5 p-6 rounded-2xl text-center">
+                                                <p className="text-[10px] font-black text-zinc-600 uppercase mb-2 tracking-widest">Gross Salary</p>
+                                                <p className="text-lg font-black text-zinc-200">
+                                                    {isLoadingSalary ? "Loading..." : salaryData ? formatCurrency(salaryData.grossSalary) : "₹ 0"}
+                                                </p>
+                                            </Card>
+                                            <Card className="bg-[#141414] border-white/5 p-6 rounded-2xl text-center">
+                                                <p className="text-[10px] font-black text-zinc-600 uppercase mb-2 tracking-widest">Net Salary</p>
+                                                <p className="text-lg font-black text-zinc-200">
+                                                    {isLoadingSalary ? "Loading..." : salaryData ? formatCurrency(salaryData.netSalary) : "₹ 0"}
+                                                </p>
+                                            </Card>
+                                            <Card className="bg-[#141414] border-white/5 p-6 rounded-2xl text-center">
+                                                <p className="text-[10px] font-black text-zinc-600 uppercase mb-2 tracking-widest">Working Days</p>
+                                                <p className="text-lg font-black text-zinc-200">5 Days/Week</p>
+                                            </Card>
                                         </div>
 
                                         <div className="h-[200px] flex flex-col items-center justify-center border-2 border-dashed border-zinc-900 rounded-[2.5rem] bg-zinc-950/50">

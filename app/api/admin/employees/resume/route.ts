@@ -1,7 +1,7 @@
 import prisma from "@/lib/prisma";
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
-import { verifyAuth } from "@/lib/auth";
+import { verifyAuth } from "@/lib/verifyAuth";
 
 // GET endpoint to retrieve employee resume with complete profile
 export const GET = async (req: NextRequest) => {

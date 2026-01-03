@@ -1,7 +1,7 @@
 import prisma from "@/lib/prisma";
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
-import { verifyAuth } from "@/lib/auth";
+import { verifyAuth } from "@/lib/verifyAuth";
 
 // GET - Get a particular employee's bank details
 export const GET = async (req: NextRequest) => {
