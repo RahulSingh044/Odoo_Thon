@@ -12,21 +12,18 @@ nlp = spacy.load("en_core_web_sm")
 # -------------------------
 
 def extract_text_pdf(path):
-    text = ""
+    text = []
     with pdfplumber.open(path) as pdf:
         for page in pdf.pages:
             t = page.extract_text()
             if t:
-                text += t + "\n"
-    return text.strip()
+                text.append(t)
+    return "\n".join(text)
 
 
 def extract_text_ocr(path):
     images = convert_from_path(path)
-    text = ""
-    for img in images:
-        text += pytesseract.image_to_string(img) + "\n"
-    return text.strip()
+    return "\n".join(pytesseract.image_to_string(img) for img in images)
 
 
 def extract_text_docx(path):
@@ -37,7 +34,7 @@ def extract_text_docx(path):
 def get_resume_text(path):
     if path.lower().endswith(".pdf"):
         text = extract_text_pdf(path)
-        if len(text) < 500:  # OCR fallback
+        if len(text.split()) < 120:
             text = extract_text_ocr(path)
         return text
     elif path.lower().endswith(".docx"):
@@ -46,151 +43,136 @@ def get_resume_text(path):
         raise ValueError("Unsupported file type")
 
 # -------------------------
-# ABOUT
+# BASIC INFO
+# -------------------------
+
+def extract_email(text):
+    m = re.search(r"[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-z]{2,}", text)
+    return m.group(0) if m else ""
+
+
+def extract_phone(text):
+    m = re.search(r"\+?\d[\d\s\-]{8,15}\d", text)
+    return m.group(0) if m else ""
+
+
+def extract_name(text):
+    lines = [l.strip() for l in text.split("\n") if l.strip()]
+    if not lines:
+        return ""
+    doc = nlp(lines[0])
+    for ent in doc.ents:
+        if ent.label_ == "PERSON":
+            return ent.text
+    return lines[0]
+
+# -------------------------
+# ABOUT / SUMMARY
 # -------------------------
 
 def extract_about(text):
-    pattern = r"(about|summary|profile|objective)\s*(.*?)(education|skills|projects|experience)"
-    match = re.search(pattern, text, re.IGNORECASE | re.DOTALL)
-    if match:
-        return re.sub(r"\s+", " ", match.group(2).strip())
+    pattern = r"(summary|profile|objective|about)\s*(.*?)(skills|experience|education|projects)"
+    m = re.search(pattern, text, re.I | re.S)
+    if m:
+        return re.sub(r"\s+", " ", m.group(2)).strip()
 
-    lines = [l.strip() for l in text.split("\n") if len(l.strip()) > 40]
-    return lines[0] if lines else ""
+    for line in text.split("\n"):
+        if len(line.strip()) > 50:
+            return line.strip()
+    return ""
 
 # -------------------------
-# ROBUST SKILL EXTRACTION
+# SKILLS
 # -------------------------
 
-def extract_skills(text):
-    # ----------------------------------
-    # 0️⃣ Isolate Skills section FIRST
-    # ----------------------------------
-    skills_match = re.search(
-        r"Skills\s*(.*?)\s*Projects",
-        text,
-        re.IGNORECASE | re.DOTALL
+def isolate_skills_section(text):
+    pattern = r"skills\s*(.*?)(coding profiles|education|projects|certification)"
+    m = re.search(pattern, text, re.I | re.S)
+    return m.group(1) if m else text
+
+
+def is_noise(s):
+    s = s.lower()
+    return (
+        "http" in s or "www" in s or ".com" in s or
+        "/" in s or "_" in s or
+        s in {
+            "tools", "platforms", "database", "databases",
+            "basics", "profile", "profiles", "coding profiles",
+            "languages"
+        } or
+        len(s) <= 2
     )
 
-    if skills_match:
-        skills_text = skills_match.group(1)
-    else:
-        skills_text = text  # fallback (keep robustness)
 
-    # IMPORTANT: preserve line structure for skills
+def extract_skills(text):
+    skills_text = isolate_skills_section(text)
     skills_text = skills_text.replace("•", "\n")
 
     candidates = []
 
-    # ----------------------------------
-    # Signal A: line & bullet parsing
-    # ----------------------------------
+    # Line-based extraction
     for line in skills_text.split("\n"):
         line = line.strip()
-        if 3 <= len(line) <= 150:
-            if ":" in line:
-                line = line.split(":", 1)[1]
+        if ":" in line:
+            line = line.split(":", 1)[1]
 
-            for p in re.split(r",|/|&|\band\b", line):
-                p = p.strip()
-                if 2 <= len(p) <= 40:
-                    candidates.append(p)
+        for part in re.split(r",|/|&|\band\b", line):
+            p = part.strip()
+            if 2 <= len(p) <= 40:
+                candidates.append(p)
 
-    # ----------------------------------
-    # Signal B: sentence parsing (LIMITED)
-    # ----------------------------------
-    for sent in re.split(r"\.|\;", skills_text):
-        sent = sent.strip()
-        if 10 <= len(sent) <= 150:
-            for p in re.split(r",|/|&|\band\b", sent):
-                p = p.strip()
-                if 2 <= len(p) <= 40:
-                    candidates.append(p)
-
-    # ----------------------------------
-    # Signal C: NLP noun chunks (SKILLS ONLY)
-    # ----------------------------------
-    doc = nlp(skills_text)
+    # NLP noun chunks (restricted)
+    doc = nlp(skills_text[:1200])
     for chunk in doc.noun_chunks:
         phrase = chunk.text.strip()
-        if 1 <= len(phrase.split()) <= 4 and 3 <= len(phrase) <= 40:
+        if 1 <= len(phrase.split()) <= 3:
             candidates.append(phrase)
 
-    # ----------------------------------
-    # Normalization
-    # ----------------------------------
     TECH_MAP = {
+        "py": "Python",
         "js": "JavaScript",
-        "node": "Node.js",
+        "cpp": "C++",
         "nodejs": "Node.js",
         "reactjs": "React",
-        "nextjs": "Next.js",
-        "cpp": "C++",
-        "py": "Python",
         "ml": "Machine Learning",
         "ai": "Artificial Intelligence"
     }
 
-    normalized = []
+    cleaned = []
     for c in candidates:
         key = c.lower().replace(".", "")
-        normalized.append(TECH_MAP.get(key, c))
+        cleaned.append(TECH_MAP.get(key, c))
 
-    # ----------------------------------
-    # Filter noise (unchanged)
-    # ----------------------------------
-    blacklist_start = (
-        "developed", "implemented", "designed",
-        "built", "worked", "using", "with"
-    )
-
-    filtered = []
-    for s in normalized:
-        if (
-            not s.lower().startswith(blacklist_start)
-            and not s.isdigit()
-            and len(s.split()) <= 4
-        ):
-            filtered.append(s)
-
-    # ----------------------------------
-    # Frequency-based reliability (ADJUSTED)
-    # ----------------------------------
-    freq = {}
-    for s in filtered:
+    final, seen = [], set()
+    for s in cleaned:
         k = s.lower()
-        freq[k] = freq.get(k, 0) + 1
-
-    final = []
-    seen = set()
-    for s in filtered:
-        key = s.lower()
-
-        # 🔥 CHANGE: skills from Skills section are trusted
-        if key not in seen and (
-            freq[key] >= 1 or any(c.isupper() for c in s)
-        ):
-            seen.add(key)
+        if k not in seen and not is_noise(s) and len(s.split()) <= 3:
+            seen.add(k)
             final.append(s)
 
     return final
-
 
 # -------------------------
 # MAIN PARSER
 # -------------------------
 
 def parse_resume(path):
-    text = get_resume_text(path)
-    text = re.sub(r"\s+", " ", text)
+    raw = get_resume_text(path)
+    text = re.sub(r"\s+", " ", raw)
 
     result = {
+        "name": extract_name(raw),
+        "email": extract_email(text),
+        "phone": extract_phone(text),
         "about": extract_about(text),
-        "skills": extract_skills(text)
+        "skills": extract_skills(text),
     }
 
     result["confidence_ok"] = (
-        len(result["skills"]) >= 6 and len(result["about"]) > 60
+        len(result["skills"]) >= 6
+        and len(result["about"]) > 60
+        and result["email"] != ""
     )
 
     return result
