@@ -4,7 +4,7 @@ import { cookies } from "next/headers";
 import { z } from "zod";
 import jwt from "jsonwebtoken";
 import bcrypt from "bcryptjs";
-import { getSecretKey } from "@/lib/auth";
+import { getSecretKey } from "@/lib/verifyAuth";
 // import crypto from "crypto";
 
 // function generatePassword(length = 8) {
@@ -15,25 +15,25 @@ import { getSecretKey } from "@/lib/auth";
 // }
 
 async function generateEmployeeId(
-  firstName: string,
-  lastName: string
+    firstName: string,
+    lastName: string
 ) {
-  const currentYear = new Date().getFullYear();
+    const currentYear = new Date().getFullYear();
 
-  const prefix =
-    "OI" +
-    firstName.slice(0, 2).toUpperCase() +
-    lastName.slice(0, 2).toUpperCase() +
-    currentYear;
+    const prefix =
+        "OI" +
+        firstName.slice(0, 2).toUpperCase() +
+        lastName.slice(0, 2).toUpperCase() +
+        currentYear;
 
-  const serialRow = await prisma.globalSerial.update({
-    where: { id: 1 },
-    data: { lastSerial: { increment: 1 } },
-  });
+    const serialRow = await prisma.globalSerial.update({
+        where: { id: 1 },
+        data: { lastSerial: { increment: 1 } },
+    });
 
-  const padded = String(serialRow.lastSerial).padStart(4, "0");
+    const padded = String(serialRow.lastSerial).padStart(4, "0");
 
-  return `${prefix}${padded}`;
+    return `${prefix}${padded}`;
 }
 
 
@@ -49,6 +49,7 @@ const SignUpValidation = z.object({
 export const POST = async (req: NextRequest) => {
     try {
         let body;
+
         try {
             const text = await req.text();
             if (!text || text.trim().length === 0) {
@@ -80,13 +81,13 @@ export const POST = async (req: NextRequest) => {
         }
 
         const { firstName, lastName, password, email, role } = validation.data;
-        
+
         // Check if user already exists
         const existingUser = await prisma.user.findUnique({ where: { email } });
         if (existingUser) {
             return NextResponse.json({ success: false, message: "User already exists" }, { status: 400 });
         }
-        
+
         // Determine designation ID - use default HR designation if role is HR and no designationId provided
         const designationId = (body as { designationId?: string }).designationId;
         let finalDesignationId = designationId;
@@ -95,30 +96,30 @@ export const POST = async (req: NextRequest) => {
             const defaultHrDesignation = await prisma.designation.findUnique({
                 where: { name: "HR" }
             });
-            
+
             if (!defaultHrDesignation) {
-                return NextResponse.json({ 
-                    success: false, 
-                    message: "Default HR designation not found. Please run migrations." 
+                return NextResponse.json({
+                    success: false,
+                    message: "Default HR designation not found. Please run migrations."
                 }, { status: 500 });
             }
-            
+
             finalDesignationId = defaultHrDesignation.id;
         }
-        
+
         if (!finalDesignationId) {
-            return NextResponse.json({ 
-                success: false, 
-                message: "Designation ID is required for non-HR roles" 
+            return NextResponse.json({
+                success: false,
+                message: "Designation ID is required for non-HR roles"
             }, { status: 400 });
         }
-        
+
         // Verify designation exists
         const designation = await prisma.designation.findUnique({ where: { id: finalDesignationId } });
         if (!designation) {
             return NextResponse.json({ success: false, message: "Designation not found" }, { status: 400 });
         }
-        
+
         const name = firstName + " " + lastName;
         const employeeId = await generateEmployeeId(firstName, lastName);
         const hashedPassword = await bcrypt.hash(password, 12);

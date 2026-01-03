@@ -32,11 +32,18 @@ export default function LoginForm() {
             });
 
             const data = await res.json();
-            if (data.success) {
-                router.push("/");
+            if (!res.ok) {
+                setLoading(false);
+                alert(data.message || "Login failed");
+                return;
+            }
+
+            console.log("role", data.role)
+
+            if (data.role === "HR") {
+                router.replace("/admin/employee");
             } else {
-                alert("Invalid Credentials")
-                setError(data.error);
+                router.replace("/");
             }
         } catch (err: any) {
             setError(err.message);

@@ -2,7 +2,7 @@ import prisma from "@/lib/prisma";
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { ComponentType, ValueType } from "@/app/generated/prisma/enums";
-import { verifyAuth } from "@/lib/auth";
+import { verifyAuth } from "@/lib/verifyAuth";
 
 const ComponentValidation = z.object({
     type: z.nativeEnum(ComponentType),
