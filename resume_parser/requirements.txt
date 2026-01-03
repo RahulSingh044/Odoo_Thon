@@ -1,11 +1,12 @@
-# Add project dependencies here, e.g.
-# requests==2.31.0
-flask
+# flask
+
+fastapi
+uvicorn
 pdfplumber
 python-docx
 pytesseract
 pdf2image
 spacy
 pillow
-#run this also to download the spaCy English model
-#python -m spacy download en_core_web_sm
+python-multipart
+werkzeug
