@@ -4,12 +4,14 @@ import React, { useState } from "react";
 import Link from "next/link";
 import { Eye, EyeOff, Loader2 } from "lucide-react";
 import Image from "next/image";
+import { useRouter } from "next/navigation";
 
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 
 export default function LoginForm() {
+    const router = useRouter();
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState("");
     const [showPassword, setShowPassword] = useState(false);
@@ -23,14 +25,19 @@ export default function LoginForm() {
         setError("");
 
         try {
-            const res = await fetch("/api/auth/signin", {
+            const res = await fetch("/api/auth/login", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ email, password, action: "verify-credentials" }),
+                body: JSON.stringify({ email, password }),
             });
 
             const data = await res.json();
-            if (!res.ok) throw new Error(data.error || "Invalid credentials");
+            if (data.success) {
+                router.push("/");
+            } else {
+                alert("Invalid Credentials")
+                setError(data.error);
+            }
         } catch (err: any) {
             setError(err.message);
         } finally {
