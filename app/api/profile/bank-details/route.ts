@@ -9,8 +9,7 @@ const CreateBankDetailsValidation = z.object({
     bankName: z.string().min(1, "Bank name is required"),
     ifscCode: z.string().min(1, "IFSC code is required"),
     panNumber: z.string().optional(),
-    uanNumber: z.string().optional(),
-    employeeCode: z.string().optional(),
+    uanNumber: z.string().optional()
 });
 
 // Validation schema for updating bank details
@@ -19,8 +18,7 @@ const UpdateBankDetailsValidation = z.object({
     bankName: z.string().min(1, "Bank name is required").optional(),
     ifscCode: z.string().min(1, "IFSC code is required").optional(),
     panNumber: z.string().optional(),
-    uanNumber: z.string().optional(),
-    employeeCode: z.string().optional(),
+    uanNumber: z.string().optional()
 });
 
 // GET endpoint to retrieve user bank details
@@ -247,7 +245,6 @@ export const PATCH = async (req: NextRequest) => {
             ifscCode?: string;
             panNumber?: string | null;
             uanNumber?: string | null;
-            employeeCode?: string | null;
         } = {};
 
         if (validation.data.accountNumber !== undefined) {
@@ -264,9 +261,6 @@ export const PATCH = async (req: NextRequest) => {
         }
         if (validation.data.uanNumber !== undefined) {
             updateData.uanNumber = validation.data.uanNumber || null;
-        }
-        if (validation.data.employeeCode !== undefined) {
-            updateData.employeeCode = validation.data.employeeCode || null;
         }
 
         // Update bank details
