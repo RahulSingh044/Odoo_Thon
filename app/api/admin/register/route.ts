@@ -4,6 +4,7 @@ import { cookies } from "next/headers";
 import { z } from "zod";
 import jwt from "jsonwebtoken";
 import bcrypt from "bcryptjs";
+import { getSecretKey } from "@/lib/auth";
 // import crypto from "crypto";
 
 // function generatePassword(length = 8) {
@@ -41,12 +42,9 @@ const SignUpValidation = z.object({
     lastName: z.string().min(2, "Last name is required"),
     password: z.string().min(6, "Password must be at least 6 characters long"),
     email: z.string().email("Invalid email address"),
-    department: z.string().optional(),
-    designation: z.string().optional(),
+    role: z.enum(["EMPLOYEE", "HR", "ADMIN"]).optional().default("EMPLOYEE"),
 })
 
-
-const SECRET_KEY = process.env.JWT_SECRET || "MY_SECRET_KEY";
 
 export const POST = async (req: NextRequest) => {
     try {
@@ -81,16 +79,48 @@ export const POST = async (req: NextRequest) => {
             );
         }
 
-        const { firstName, lastName, password, email, department, designation } = validation.data;
-        const existingUser = await prisma.user.findUnique({ where: { email } })
+        const { firstName, lastName, password, email, role } = validation.data;
+        
+        // Check if user already exists
+        const existingUser = await prisma.user.findUnique({ where: { email } });
         if (existingUser) {
-            return NextResponse.json({ success: false, message: "User already exists" }, { status: 400 })
+            return NextResponse.json({ success: false, message: "User already exists" }, { status: 400 });
+        }
+        
+        // Determine designation ID - use default HR designation if role is HR and no designationId provided
+        const designationId = (body as { designationId?: string }).designationId;
+        let finalDesignationId = designationId;
+        if (!finalDesignationId && role === "HR") {
+            // Find or use default HR designation
+            const defaultHrDesignation = await prisma.designation.findUnique({
+                where: { name: "HR" }
+            });
+            
+            if (!defaultHrDesignation) {
+                return NextResponse.json({ 
+                    success: false, 
+                    message: "Default HR designation not found. Please run migrations." 
+                }, { status: 500 });
+            }
+            
+            finalDesignationId = defaultHrDesignation.id;
+        }
+        
+        if (!finalDesignationId) {
+            return NextResponse.json({ 
+                success: false, 
+                message: "Designation ID is required for non-HR roles" 
+            }, { status: 400 });
+        }
+        
+        // Verify designation exists
+        const designation = await prisma.designation.findUnique({ where: { id: finalDesignationId } });
+        if (!designation) {
+            return NextResponse.json({ success: false, message: "Designation not found" }, { status: 400 });
         }
         
         const name = firstName + " " + lastName;
         const employeeId = await generateEmployeeId(firstName, lastName);
-        // const password = generatePassword();
-
         const hashedPassword = await bcrypt.hash(password, 12);
 
         // Create user and profile in a transaction
@@ -100,14 +130,11 @@ export const POST = async (req: NextRequest) => {
                     employeeId,
                     email,
                     password: hashedPassword,
-                    role: "EMPLOYEE",
+                    role: role || "EMPLOYEE",
                     profile: {
                         create: {
                             name,
-                            department: department || null,
-                            designation: designation || null,
-                            address: "", // Placeholder, to be updated later
-                            emergencyContact: "", // Placeholder, to be updated later
+                            designationId: finalDesignationId,
                             joinedAt: new Date(),
                         }
                     }
@@ -119,7 +146,7 @@ export const POST = async (req: NextRequest) => {
             return user;
         });
 
-        const token = jwt.sign({ id: newUser.id, email: newUser.email, role: newUser.role }, SECRET_KEY, { expiresIn: "7d" });
+        const token = jwt.sign({ id: newUser.id, email: newUser.email, role: newUser.role }, getSecretKey(), { expiresIn: "7d" });
 
         const cookieStore = await cookies();
 

@@ -4,13 +4,12 @@ import { cookies } from "next/headers";
 import jwt from "jsonwebtoken";
 import bcrypt from "bcryptjs";
 import { z } from "zod";
+import { getSecretKey } from "@/lib/auth";
 
 const LoginValidation = z.object({
     email: z.string().email("Invalid email address"),
     password: z.string().min(6, "Password must be at least 6 characters"),
 });
-
-const SECRET_KEY = process.env.JWT_SECRET || "MY_SECRET_KEY";
 
 export const POST = async (req: NextRequest) => {
     try {
@@ -68,7 +67,7 @@ export const POST = async (req: NextRequest) => {
 
         const token = jwt.sign(
             { id: user.id, email: user.email, role: user.role },
-            SECRET_KEY,
+            getSecretKey(),
             { expiresIn: "7d" }
         );
 

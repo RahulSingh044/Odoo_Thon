@@ -1,0 +1,41 @@
+{
+  "designationId": "YOUR_DESIGNATION_ID_HERE",
+  "components": [
+    {
+      "type": "BASIC",
+      "valueType": "PERCENTAGE",
+      "value": 50,
+      "orderIndex": 0
+    },
+    {
+      "type": "HRA",
+      "valueType": "PERCENTAGE",
+      "value": 50,
+      "orderIndex": 1
+    },
+    {
+      "type": "STANDARD_ALLOWANCE",
+      "valueType": "PERCENTAGE",
+      "value": 8.33,
+      "orderIndex": 2
+    },
+    {
+      "type": "BONUS",
+      "valueType": "PERCENTAGE",
+      "value": 8.33,
+      "orderIndex": 3
+    },
+    {
+      "type": "LTA",
+      "valueType": "PERCENTAGE",
+      "value": 8.33,
+      "orderIndex": 4
+    },
+    {
+      "type": "FIXED_ALLOWANCE",
+      "valueType": "PERCENTAGE",
+      "value": 0,
+      "orderIndex": 5
+    }
+  ]
+}
