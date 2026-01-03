@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import {
     FileText,
     Lock,
@@ -18,7 +19,8 @@ import {
     X,
     FileUp,
     Download,
-    User
+    User,
+    LogOut
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { motion, AnimatePresence } from "framer-motion";
@@ -27,6 +29,7 @@ import { Separator } from "@/components/ui/separator";
 import { Card } from "@/components/ui/card";
 
 export default function RefinedProfileDashboard() {
+    const router = useRouter();
     const [activeTab, setActiveTab] = useState("resume");
     const [resumeFile, setResumeFile] = useState<File | null>(null);
 
@@ -253,6 +256,29 @@ export default function RefinedProfileDashboard() {
         }).format(amount);
     };
 
+    // Logout handler
+    const handleLogout = async () => {
+        try {
+            const response = await fetch("/api/auth/logout", {
+                method: "POST",
+            });
+            const result = await response.json();
+            
+            if (result.success) {
+                // Redirect to login page
+                router.push("/Login");
+            } else {
+                console.error("Logout failed:", result.message);
+                // Still redirect even if API call fails
+                router.push("/Login");
+            }
+        } catch (error) {
+            console.error("Error during logout:", error);
+            // Still redirect on error
+            router.push("/Login");
+        }
+    };
+
     return (
         <div className="min-h-screen bg-[#0A0A0A] text-zinc-400 p-4 md:p-8 font-sans selection:bg-[#017E84]/30">
             <div className="max-w-7xl mx-auto space-y-8">
@@ -261,6 +287,15 @@ export default function RefinedProfileDashboard() {
                 <header className="relative group overflow-hidden rounded-[2rem] border border-white/10 bg-[#141414]/80 backdrop-blur-2xl p-6 md:p-10 shadow-[0_20px_50px_rgba(0,0,0,0.5)]">
                     <div className="absolute -top-24 -right-24 w-96 h-96 bg-[#017E84]/10 rounded-full blur-[120px] pointer-events-none" />
                     <div className="absolute -bottom-24 -left-24 w-96 h-96 bg-[#714B67]/10 rounded-full blur-[120px] pointer-events-none" />
+
+                    {/* Logout Button - Top Right */}
+                    <button
+                        onClick={handleLogout}
+                        className="absolute top-2 right-6 z-20 flex items-center gap-2 px-4 py-2 bg-red-500/10 hover:bg-red-500/20 border border-red-500/30 rounded-xl text-red-400 hover:text-red-300 transition-all group/btn"
+                    >
+                        <LogOut size={16} className="group-hover/btn:translate-x-0.5 transition-transform" />
+                        <span className="text-[10px] font-black uppercase tracking-widest">Logout</span>
+                    </button>
 
                     <div className="relative z-10 flex flex-col lg:flex-row gap-12 justify-between items-center lg:items-start">
                         <div className="flex flex-col md:flex-row gap-8 items-center md:items-start text-center md:text-left w-full lg:w-auto">
