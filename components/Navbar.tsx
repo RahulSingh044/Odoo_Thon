@@ -9,7 +9,7 @@ export default function OdooNavbar() {
     const pathname = usePathname();
 
     // ⛔ Hide navbar on auth pages
-    if (pathname === "/Login" || pathname === "/register") {
+    if (pathname === "/Login" || pathname === "/register" || pathname === "/profile") {
         return null;
     }
 
@@ -79,7 +79,7 @@ export default function OdooNavbar() {
                 </ul>
 
                 {/* Profile */}
-                <div className="pl-4 pr-2 border-l border-white/10 ml-2 flex items-center gap-3">
+                <div onClick={() => redirect("Profile", "/profile")} className="pl-4 pr-2 border-l border-white/10 ml-2 flex items-center gap-3 cursor-pointer">
                     <div className="hidden md:flex flex-col items-end">
                         <span className="text-[11px] font-bold text-zinc-100">John Doe</span>
                         <span className="text-[9px] font-bold text-[#017E84] uppercase">Admin</span>
